@@ -1,17 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 15 23 42;
-    --foreground: 248 250 252;
-    --accent: 245 158 11;
+    --background: 10 31 10;
+    --foreground: 220 252 231;
+    --accent: 0 255 65;
+    --glass: 0 255 65;
+    color-scheme: dark;
+  }
+
+  [data-theme='light'] {
+    --background: 227 255 235;
+    --foreground: 5 46 22;
+    --accent: 0 153 51;
+    --glass: 0 153 51;
+    color-scheme: light;
   }
 
   body {
-    @apply bg-slate-950 text-slate-100 antialiased;
+    @apply text-emerald-50 antialiased;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-color: rgb(var(--background));
+    background-image:
+      radial-gradient(circle at top, rgba(0, 255, 65, 0.12), transparent 45%),
+      linear-gradient(135deg, #0a1f0a 0%, #001a00 100%),
+      url('https://pawelserkowski.pl/background.webp');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
   }
 
   /* Custom scrollbar */
@@ -21,62 +42,62 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-slate-900;
+    @apply bg-emerald-950;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-700 rounded-full;
+    @apply bg-emerald-800 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-600;
+    @apply bg-emerald-700;
   }
 
   /* Selection */
   ::selection {
-    @apply bg-amber-500/30 text-amber-100;
+    @apply bg-emerald-400/30 text-emerald-50;
   }
 }
 
 @layer components {
   /* Glass morphism */
   .glass {
-    @apply bg-slate-800/30 backdrop-blur-xl border border-slate-700/50;
+    @apply bg-emerald-900/30 backdrop-blur-xl border border-emerald-400/20;
   }
 
   /* Glow effects */
   .glow-amber {
-    box-shadow: 0 0 20px theme('colors.amber.500 / 30%'),
-                0 0 40px theme('colors.amber.500 / 10%');
+    box-shadow: 0 0 18px rgba(0, 255, 65, 0.3),
+                0 0 36px rgba(0, 255, 65, 0.15);
   }
 
   .glow-blue {
-    box-shadow: 0 0 20px theme('colors.blue.500 / 30%'),
-                0 0 40px theme('colors.blue.500 / 10%');
+    box-shadow: 0 0 18px rgba(52, 211, 153, 0.3),
+                0 0 36px rgba(52, 211, 153, 0.15);
   }
 
   /* Gradient text */
   .text-gradient {
-    @apply bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-emerald-300 via-emerald-400 to-green-500 bg-clip-text text-transparent;
   }
 
   /* Button variants */
   .btn-primary {
-    @apply px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400
-           text-slate-900 font-medium transition-colors;
+    @apply px-4 py-2 rounded-lg bg-emerald-400 hover:bg-emerald-300
+           text-emerald-950 font-medium transition-colors;
   }
 
   .btn-secondary {
-    @apply px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600
-           text-slate-100 font-medium transition-colors;
+    @apply px-4 py-2 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/70
+           text-emerald-100 font-medium transition-colors;
   }
 
   /* Input styles */
   .input-base {
-    @apply w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700
-           text-slate-100 placeholder:text-slate-500
-           focus:outline-none focus:ring-2 focus:ring-amber-500/50
-           focus:border-amber-500/50 transition-all;
+    @apply w-full px-4 py-3 rounded-xl bg-emerald-950/60 border border-emerald-400/30
+           text-emerald-50 placeholder:text-emerald-300/60
+           focus:outline-none focus:ring-2 focus:ring-emerald-400/50
+           focus:border-emerald-300/70 transition-all;
   }
 }
 
