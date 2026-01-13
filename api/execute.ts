@@ -73,7 +73,7 @@ async function callGemini(prompt: string, context: string): Promise<string> {
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -211,12 +211,12 @@ export default async function handler(
       } catch {
         // Fallback to Gemini
         response = await callGemini(input.prompt, context);
-        modelUsed = 'gemini-1.5-flash (fallback)';
+        modelUsed = 'gemini-2.0-flash (fallback)';
       }
     } else {
       // General task -> Gemini
       response = await callGemini(input.prompt, context);
-      modelUsed = 'gemini-1.5-flash';
+      modelUsed = 'gemini-2.0-flash';
     }
 
     const output: OutputPayload = {
