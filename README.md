@@ -146,10 +146,10 @@ Or use the Vercel Dashboard:
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Start dev server
-npm run dev
+pnpm dev
 ```
 
 ### Backend (mock)
@@ -158,10 +158,17 @@ For local development, the Rust function won't run directly. Use Vercel CLI:
 
 ```bash
 # Install Vercel CLI
-npm i -g vercel
+pnpm add -g vercel
 
 # Run locally with Vercel runtime
 vercel dev
+```
+
+### Testy end-to-end (Playwright)
+
+```bash
+# Run Playwright tests
+pnpm test:e2e
 ```
 
 ## API Reference
