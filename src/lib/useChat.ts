@@ -22,7 +22,7 @@ interface ChatState {
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-export const useChat = create<ChatState>((set, get) => ({
+export const useChat = create<ChatState>((set) => ({
   messages: [],
   isLoading: false,
   isResearching: false,
