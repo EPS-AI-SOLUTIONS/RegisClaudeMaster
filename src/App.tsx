@@ -29,13 +29,23 @@ function App() {
   const { t, i18n } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const MAX_PROMPT_LENGTH = 500;
+
+  const suggestions = useMemo(() => {
+    const value = t('app.suggestions', { returnObjects: true });
+    return Array.isArray(value) ? value : [];
+  }, [t]);
 
   const schema = useMemo(
     () =>
       z.object({
-        prompt: z.string().min(3, t('forms.inputMin')).nonempty(t('forms.inputRequired')),
+        prompt: z
+          .string()
+          .min(3, t('forms.inputMin'))
+          .max(MAX_PROMPT_LENGTH, t('forms.inputMax'))
+          .nonempty(t('forms.inputRequired')),
       }),
-    [t]
+    [MAX_PROMPT_LENGTH, t]
   );
 
   const { register, handleSubmit, reset, formState } = useForm<{ prompt: string }>({
@@ -56,14 +66,26 @@ function App() {
   });
 
   useEffect(() => {
+    const stored = localStorage.getItem('regis-preferences');
+    let hasStoredTheme = false;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as { state?: { theme?: string } };
+        hasStoredTheme = parsed?.state?.theme === 'light' || parsed?.state?.theme === 'dark';
+      } catch {
+        hasStoredTheme = false;
+      }
+    }
+
     const media = window.matchMedia('(prefers-color-scheme: light)');
-    const stored = localStorage.getItem('regis-theme');
-    const initialTheme = stored === 'light' || stored === 'dark' ? stored : media.matches ? 'light' : 'dark';
-    setTheme(initialTheme);
-    setLanguage((localStorage.getItem('regis-language') as 'pl' | 'en') ?? 'pl');
-    document.documentElement.dataset.theme = initialTheme;
+    if (!hasStoredTheme) {
+      const initialTheme = media.matches ? 'light' : 'dark';
+      setTheme(initialTheme);
+      document.documentElement.dataset.theme = initialTheme;
+    }
 
     const handleChange = (event: MediaQueryListEvent) => {
+      if (hasStoredTheme) return;
       const nextTheme = event.matches ? 'light' : 'dark';
       setTheme(nextTheme);
       document.documentElement.dataset.theme = nextTheme;
@@ -73,16 +95,14 @@ function App() {
     return () => {
       media.removeEventListener('change', handleChange);
     };
-  }, [setLanguage, setTheme]);
+  }, [setTheme]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem('regis-theme', theme);
   }, [theme]);
 
   useEffect(() => {
     void i18n.changeLanguage(language);
-    localStorage.setItem('regis-language', language);
   }, [i18n, language]);
 
   useEffect(() => {
@@ -174,6 +194,10 @@ function App() {
 
   const onSubmit = async ({ prompt }: { prompt: string }) => {
     if (isLoading) return;
+    if (!isOnline) {
+      setError(t('errors.offline'));
+      return;
+    }
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -276,8 +300,8 @@ function App() {
               type="button"
               onClick={() => setLanguage(language === 'pl' ? 'en' : 'pl')}
               className="p-2 rounded-full border border-emerald-400/30 bg-emerald-950/60 hover:bg-emerald-900/70 transition-colors"
-              aria-label="Zmień język"
-              title="Zmień język"
+              aria-label={t('app.languageToggle')}
+              title={t('app.languageToggle')}
             >
               <Languages className="w-4 h-4 text-emerald-200" />
             </button>
@@ -300,11 +324,7 @@ function App() {
             <h2 className="text-2xl font-semibold text-emerald-100 mb-2">{t('app.welcomeTitle')}</h2>
             <p className="text-emerald-200/70 max-w-md mx-auto mb-8">{t('app.welcomeBody')}</p>
             <div className="flex flex-wrap justify-center gap-2">
-              {[
-                'Wyjaśnij komputery kwantowe',
-                'Napisz sortowanie w Pythonie',
-                'Porównaj REST vs GraphQL',
-              ].map((suggestion) => (
+              {suggestions.map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => {
@@ -423,7 +443,7 @@ function App() {
             />
             <button
               type="submit"
-              disabled={!formState.isValid || isLoading}
+              disabled={!formState.isValid || isLoading || !isOnline}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-xl
                        bg-emerald-400 hover:bg-emerald-300 disabled:bg-emerald-900
                        disabled:cursor-not-allowed transition-colors"

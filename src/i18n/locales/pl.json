@@ -8,12 +8,18 @@
     "poweredBy": "Zasilane przez Edge Functions + Google Grounding",
     "themeLight": "Włącz jasny motyw",
     "themeDark": "Włącz ciemny motyw",
+    "languageToggle": "Zmień język",
     "shortcuts": "Skróty",
     "clearChat": "Wyczyść czat",
     "clearChatShortcut": "Ctrl+L",
     "focusInputShortcut": "Ctrl+K",
     "undoShortcut": "Ctrl+Z",
-    "redoShortcut": "Ctrl+Y"
+    "redoShortcut": "Ctrl+Y",
+    "suggestions": [
+      "Wyjaśnij komputery kwantowe",
+      "Napisz sortowanie w Pythonie",
+      "Porównaj REST vs GraphQL"
+    ]
   },
   "labels": {
     "model": "Model"
@@ -26,7 +32,13 @@
       "ground": "Uziemiam",
       "analyze": "Analizuję",
       "generate": "Generuję"
-    }
+    },
+    "progress": [
+      "Wgrywam zielone cyfry...",
+      "Stabilizuję strumień danych...",
+      "Filtruję szum sieciowy...",
+      "Łączę wątki informacji..."
+    ]
   },
   "messages": {
     "thinking": "Myślę...",
@@ -40,6 +52,7 @@
     "auth": "Uwierzytelnianie nieudane. Zaloguj się ponownie.",
     "timeout": "Przekroczono limit czasu. Spróbuj prostszego zapytania.",
     "rateLimit": "Limit żądań przekroczony. Spróbuj później.",
+    "offline": "Brak połączenia. Połącz się ponownie, aby wysłać zapytanie.",
     "unknown": "Coś poszło nie tak."
   },
   "health": {
@@ -51,7 +64,8 @@
   },
   "forms": {
     "inputRequired": "To pole jest wymagane.",
-    "inputMin": "Wpisz co najmniej 3 znaki."
+    "inputMin": "Wpisz co najmniej 3 znaki.",
+    "inputMax": "Wiadomość nie może mieć więcej niż 500 znaków."
   },
   "statusLabels": {
     "online": "Online",

@@ -8,12 +8,18 @@
     "poweredBy": "Powered by Edge Functions + Google Grounding",
     "themeLight": "Enable light mode",
     "themeDark": "Enable dark mode",
+    "languageToggle": "Switch language",
     "shortcuts": "Shortcuts",
     "clearChat": "Clear chat",
     "clearChatShortcut": "Ctrl+L",
     "focusInputShortcut": "Ctrl+K",
     "undoShortcut": "Ctrl+Z",
-    "redoShortcut": "Ctrl+Y"
+    "redoShortcut": "Ctrl+Y",
+    "suggestions": [
+      "Explain quantum computing",
+      "Write a Python sorting algorithm",
+      "Compare REST vs GraphQL"
+    ]
   },
   "labels": {
     "model": "Model"
@@ -26,7 +32,13 @@
       "ground": "Grounding",
       "analyze": "Analyzing",
       "generate": "Generating"
-    }
+    },
+    "progress": [
+      "Uploading green digits...",
+      "Stabilizing data stream...",
+      "Filtering network noise...",
+      "Weaving the threads of info..."
+    ]
   },
   "messages": {
     "thinking": "Thinking...",
@@ -40,6 +52,7 @@
     "auth": "Authentication failed. Please log in again.",
     "timeout": "Request timed out. Try a simpler query.",
     "rateLimit": "Rate limit exceeded. Try again later.",
+    "offline": "You're offline. Reconnect to send a prompt.",
     "unknown": "Something went wrong."
   },
   "health": {
@@ -51,7 +64,8 @@
   },
   "forms": {
     "inputRequired": "This field is required.",
-    "inputMin": "Please enter at least 3 characters."
+    "inputMin": "Please enter at least 3 characters.",
+    "inputMax": "Please keep the message under 500 characters."
   },
   "statusLabels": {
     "online": "Online",

@@ -17,6 +17,8 @@ interface ChatInterfaceProps {
 export function ChatInterface({ messages, isLoading }: ChatInterfaceProps) {
   const { t, i18n } = useTranslation();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const MAX_RENDERED_MESSAGES = 100;
+  const visibleMessages = messages.slice(-MAX_RENDERED_MESSAGES);
 
   const handleCopy = async (code: string, key: string) => {
     const success = await copyToClipboard(code);
@@ -28,7 +30,7 @@ export function ChatInterface({ messages, isLoading }: ChatInterfaceProps) {
 
   return (
     <div className="space-y-6">
-      {messages.map((message, index) => (
+      {visibleMessages.map((message, index) => (
         <motion.div
           key={message.id}
           initial={{ opacity: 0, y: 20 }}

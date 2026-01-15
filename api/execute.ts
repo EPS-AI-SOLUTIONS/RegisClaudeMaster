@@ -7,7 +7,6 @@ import { buildCorsHeaders } from './cors';
 interface InputPayload {
   prompt: string;
   model?: string;
-  stream?: boolean;
 }
 
 interface SearchResult {
@@ -37,6 +36,7 @@ interface GoogleSearchResponse {
 const RATE_LIMIT_WINDOW = 60_000;
 const RATE_LIMIT_MAX = 20;
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_CACHE_ORIGIN = 'https://rate-limit.local';
 
 // Perform web grounding via Google Custom Search
 async function performGrounding(query: string): Promise<SearchResult[]> {
@@ -90,8 +90,44 @@ function getClientIp(req: Request): string {
   return forwarded?.split(',')[0]?.trim() ?? 'unknown';
 }
 
-function isRateLimited(ip: string): boolean {
+async function isRateLimited(ip: string): Promise<boolean> {
   const now = Date.now();
+
+  if (typeof caches !== 'undefined') {
+    const cache = caches.default;
+    const cacheKey = new Request(`${RATE_LIMIT_CACHE_ORIGIN}/${ip}`);
+    const cached = await cache.match(cacheKey);
+    const entry = cached ? ((await cached.json()) as { count: number; resetAt: number }) : undefined;
+
+    if (!entry || entry.resetAt < now) {
+      const nextEntry = { count: 1, resetAt: now + RATE_LIMIT_WINDOW };
+      await cache.put(
+        cacheKey,
+        new Response(JSON.stringify(nextEntry), {
+          headers: {
+            'Cache-Control': `max-age=${Math.ceil(RATE_LIMIT_WINDOW / 1000)}`,
+          },
+        })
+      );
+      return false;
+    }
+
+    if (entry.count >= RATE_LIMIT_MAX) {
+      return true;
+    }
+
+    const nextEntry = { ...entry, count: entry.count + 1 };
+    await cache.put(
+      cacheKey,
+      new Response(JSON.stringify(nextEntry), {
+        headers: {
+          'Cache-Control': `max-age=${Math.ceil((entry.resetAt - now) / 1000)}`,
+        },
+      })
+    );
+    return false;
+  }
+
   const entry = rateLimitMap.get(ip);
   if (!entry || entry.resetAt < now) {
     rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
@@ -123,7 +159,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   // Rate limit
-  if (isRateLimited(getClientIp(req))) {
+  if (await isRateLimited(getClientIp(req))) {
     return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers });
   }
 

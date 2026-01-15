@@ -9,15 +9,10 @@ const steps = [
   { icon: Sparkles, labelKey: 'status.steps.generate' },
 ];
 
-const progressMessages = [
-  'Wgrywam zielone cyfry...',
-  'Stabilizuję strumień danych...',
-  'Filtruję szum sieciowy...',
-  'Łączę wątki informacji...',
-];
-
 export function ResearchStatus() {
   const { t } = useTranslation();
+  const progressMessages = t('status.progress', { returnObjects: true });
+  const progressList = Array.isArray(progressMessages) ? progressMessages : [];
 
   return (
     <motion.div
@@ -79,7 +74,7 @@ export function ResearchStatus() {
               animate={{ x: ['0%', '-50%'] }}
               transition={{ duration: 0.3, repeat: Infinity, ease: 'linear' }}
             >
-              {[...progressMessages, ...progressMessages].map((message, index) => (
+              {[...progressList, ...progressList].map((message, index) => (
                 <span key={`${message}-${index}`} className="uppercase tracking-[0.2em]">
                   {message}
                 </span>
