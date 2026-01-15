@@ -30,7 +30,7 @@ test('toggles the theme switch', async ({ page }) => {
 
   const initialTheme = await page.evaluate(() => document.documentElement.dataset.theme);
   await toggle.click();
-  await expect(page).toHaveFunction(
+  await page.waitForFunction(
     (expected) => document.documentElement.dataset.theme !== expected,
     initialTheme
   );

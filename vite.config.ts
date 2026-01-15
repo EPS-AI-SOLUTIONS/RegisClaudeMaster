@@ -1,7 +1,7 @@
 import { defineConfig, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-import { visualizer } from 'vite-bundle-analyzer';
+import analyzer from 'vite-bundle-analyzer';
 import path from 'path';
 
 // https://vitejs.dev/config/
@@ -26,7 +26,7 @@ const plugins: PluginOption[] = [
         ],
       },
     }),
-    process.env.ANALYZE ? visualizer({ open: true }) : undefined,
+    process.env.ANALYZE ? analyzer({ open: true }) : undefined,
   ].filter(Boolean) as PluginOption[];
 
 export default defineConfig({
