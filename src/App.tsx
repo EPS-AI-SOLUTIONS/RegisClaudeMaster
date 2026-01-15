@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, BookOpen, Zap, Sun, Moon, Globe, Trash2, Languages } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -73,7 +73,7 @@ function App() {
     return () => {
       media.removeEventListener('change', handleChange);
     };
-  }, []);
+  }, [setLanguage, setTheme]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -114,6 +114,30 @@ function App() {
     };
   }, [formState.errors]);
 
+  const handleClearChat = useCallback(() => {
+    if (messages.length === 0) return;
+    setHistory((prev) => [...prev, messages]);
+    setRedoStack([]);
+    setMessages([]);
+    setError(null);
+  }, [messages]);
+
+  const handleUndo = useCallback(() => {
+    const previous = history.length > 0 ? history[history.length - 1] : undefined;
+    if (!previous) return;
+    setHistory((prev) => prev.slice(0, -1));
+    setRedoStack((prev) => [...prev, messages]);
+    setMessages(previous);
+  }, [history, messages]);
+
+  const handleRedo = useCallback(() => {
+    const next = redoStack.length > 0 ? redoStack[redoStack.length - 1] : undefined;
+    if (!next) return;
+    setRedoStack((prev) => prev.slice(0, -1));
+    setHistory((prev) => [...prev, messages]);
+    setMessages(next);
+  }, [messages, redoStack]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.key.toLowerCase() === 'k') {
@@ -135,7 +159,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [messages, history, redoStack]);
+  }, [handleClearChat, handleRedo, handleUndo]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -147,30 +171,6 @@ function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
-
-  const handleClearChat = () => {
-    if (messages.length === 0) return;
-    setHistory((prev) => [...prev, messages]);
-    setRedoStack([]);
-    setMessages([]);
-    setError(null);
-  };
-
-  const handleUndo = () => {
-    const previous = history.length > 0 ? history[history.length - 1] : undefined;
-    if (!previous) return;
-    setHistory((prev) => prev.slice(0, -1));
-    setRedoStack((prev) => [...prev, messages]);
-    setMessages(previous);
-  };
-
-  const handleRedo = () => {
-    const next = redoStack.length > 0 ? redoStack[redoStack.length - 1] : undefined;
-    if (!next) return;
-    setRedoStack((prev) => prev.slice(0, -1));
-    setHistory((prev) => [...prev, messages]);
-    setMessages(next);
-  };
 
   const onSubmit = async ({ prompt }: { prompt: string }) => {
     if (isLoading) return;
