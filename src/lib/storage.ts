@@ -83,10 +83,16 @@ export async function loadLatestBackup(): Promise<Message[] | null> {
   if (latestKey === undefined) return null;
   const record = await db.get(STORE_NAME, latestKey);
   if (!record) return null;
-  const decrypted = await decryptPayload({ iv: record.iv, data: record.data });
-  const parsed = JSON.parse(decrypted) as { messages: Message[] };
-  return parsed.messages.map((message) => ({
-    ...message,
-    timestamp: new Date(message.timestamp),
-  }));
+  try {
+    const decrypted = await decryptPayload({ iv: record.iv, data: record.data });
+    const parsed = JSON.parse(decrypted) as { messages: Message[] };
+    return parsed.messages.map((message) => ({
+      ...message,
+      timestamp: new Date(message.timestamp),
+    }));
+  } catch (error) {
+    console.warn('Backup decrypt failed', error);
+    await db.delete(STORE_NAME, latestKey);
+    return null;
+  }
 }

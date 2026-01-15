@@ -62,7 +62,7 @@ export async function executePrompt(prompt: string, model?: string, signal?: Abo
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ prompt, model, stream: true }),
+      body: JSON.stringify({ prompt, model }),
       signal: mergedSignal,
       credentials: 'include',
     });
