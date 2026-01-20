@@ -5,8 +5,13 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/api/execute", "destination": "/api/execute" },
+    { "source": "/api/stream", "destination": "/api/stream" },
     { "source": "/api/health", "destination": "/api/health" },
     { "source": "/api/models", "destination": "/api/models" },
+    { "source": "/api/metrics-dashboard", "destination": "/api/metrics-dashboard" },
+    { "source": "/api/provider-admin", "destination": "/api/provider-admin" },
+    { "source": "/api/cache-admin", "destination": "/api/cache-admin" },
+    { "source": "/api/logs", "destination": "/api/logs" },
     { "source": "/api/auth/(.*)", "destination": "/api/auth/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
@@ -20,10 +25,25 @@
     "api/execute.ts": {
       "maxDuration": 60
     },
+    "api/stream.ts": {
+      "maxDuration": 60
+    },
     "api/health.ts": {
       "maxDuration": 10
     },
     "api/models.ts": {
+      "maxDuration": 10
+    },
+    "api/metrics-dashboard.ts": {
+      "maxDuration": 10
+    },
+    "api/provider-admin.ts": {
+      "maxDuration": 10
+    },
+    "api/cache-admin.ts": {
+      "maxDuration": 10
+    },
+    "api/logs.ts": {
       "maxDuration": 10
     },
     "api/auth/login.ts": {

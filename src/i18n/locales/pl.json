@@ -42,7 +42,84 @@
     "auth": "Uwierzytelnianie nieudane. Zaloguj się ponownie.",
     "timeout": "Przekroczono limit czasu. Spróbuj prostszego zapytania.",
     "rateLimit": "Limit żądań przekroczony. Spróbuj później.",
-    "unknown": "Coś poszło nie tak."
+    "unknown": "Coś poszło nie tak.",
+    "showDetails": "Pokaż szczegóły",
+    "BAD_REQUEST": {
+      "title": "Nieprawidłowe żądanie",
+      "message": "Format żądania jest nieprawidłowy. Sprawdź swoje dane."
+    },
+    "UNAUTHORIZED": {
+      "title": "Wymagane uwierzytelnienie",
+      "message": "Zaloguj się, aby kontynuować."
+    },
+    "FORBIDDEN": {
+      "title": "Brak dostępu",
+      "message": "Nie masz uprawnień do wykonania tej akcji."
+    },
+    "NOT_FOUND": {
+      "title": "Nie znaleziono",
+      "message": "Żądany zasób nie został znaleziony."
+    },
+    "RATE_LIMITED": {
+      "title": "Za dużo żądań",
+      "message": "Wysłałeś za dużo żądań. Zwolnij trochę."
+    },
+    "PAYLOAD_TOO_LARGE": {
+      "title": "Wiadomość za długa",
+      "message": "Twoja wiadomość jest za długa. Skróć ją i spróbuj ponownie."
+    },
+    "INVALID_MODEL": {
+      "title": "Nieprawidłowy model",
+      "message": "Wybrany model nie jest dostępny."
+    },
+    "INVALID_PROMPT": {
+      "title": "Nieprawidłowy prompt",
+      "message": "Wpisz wiadomość do wysłania."
+    },
+    "INTERNAL_ERROR": {
+      "title": "Błąd wewnętrzny",
+      "message": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie."
+    },
+    "PROVIDER_ERROR": {
+      "title": "Błąd dostawcy AI",
+      "message": "Dostawca AI zwrócił błąd."
+    },
+    "PROVIDER_TIMEOUT": {
+      "title": "Timeout dostawcy AI",
+      "message": "Dostawca AI odpowiadał zbyt długo."
+    },
+    "PROVIDER_UNAVAILABLE": {
+      "title": "Dostawca AI niedostępny",
+      "message": "Dostawca AI jest tymczasowo niedostępny."
+    },
+    "ALL_PROVIDERS_FAILED": {
+      "title": "Wszyscy dostawcy AI zawiodli",
+      "message": "Wszyscy dostawcy AI są obecnie niedostępni. Spróbuj później."
+    },
+    "GROUNDING_FAILED": {
+      "title": "Wyszukiwanie nieudane",
+      "message": "Wyszukiwanie nie powiodło się, ale AI może odpowiedzieć bez zewnętrznego kontekstu."
+    },
+    "CACHE_ERROR": {
+      "title": "Błąd cache",
+      "message": "Operacja cache nie powiodła się. Odpowiedź może być wolniejsza."
+    },
+    "NETWORK_ERROR": {
+      "title": "Błąd sieci",
+      "message": "Nie można połączyć się z serwerem. Sprawdź połączenie internetowe."
+    },
+    "TIMEOUT": {
+      "title": "Przekroczono czas",
+      "message": "Żądanie trwało za długo. Spróbuj ponownie."
+    },
+    "AUTH_EXPIRED": {
+      "title": "Sesja wygasła",
+      "message": "Twoja sesja wygasła. Odśwież stronę."
+    },
+    "AUTH_INVALID": {
+      "title": "Nieprawidłowe dane logowania",
+      "message": "Twoje dane logowania są nieprawidłowe. Zaloguj się ponownie."
+    }
   },
   "health": {
     "title": "Panel zdrowia",
@@ -58,5 +135,47 @@
   "statusLabels": {
     "online": "Online",
     "offline": "Offline"
+  },
+  "feedback": {
+    "thanks": "Dzięki!",
+    "helpful": "Pomocne",
+    "notHelpful": "Niepomocne",
+    "whatWrong": "Co poszło nie tak?"
+  },
+  "offline": {
+    "syncing": "Synchronizuję...",
+    "offline": "Jesteś offline",
+    "queued": "{{count}} wiadomości w kolejce",
+    "syncNow": "Synchronizuj teraz"
+  },
+  "common": {
+    "send": "Wyślij",
+    "retry": "Spróbuj ponownie",
+    "dismiss": "Odrzuć",
+    "cancel": "Anuluj",
+    "confirm": "Potwierdź",
+    "close": "Zamknij"
+  },
+  "grounding": {
+    "label": "Wyszukiwanie",
+    "toggle": "Przełącz wyszukiwanie",
+    "enabled": "Wyszukiwanie włączone",
+    "disabled": "Wyszukiwanie wyłączone",
+    "enableHint": "Włącz wyszukiwanie dla aktualnych informacji",
+    "disableHint": "Wyłącz wyszukiwanie"
+  },
+  "sources": {
+    "title": "Źródła",
+    "quality": "Jakość",
+    "qualityHigh": "Wysoka",
+    "qualityMedium": "Średnia",
+    "qualityLow": "Niska",
+    "qualityTooltip": "Jakość źródła bazująca na trafności i różnorodności",
+    "showMore": "Pokaż {{count}} więcej",
+    "showLess": "Pokaż mniej",
+    "more": "więcej",
+    "fetched": "Pobrano teraz",
+    "fallback": "Zapasowy",
+    "fallbackUsed": "Użyto zapasowego dostawcy wyszukiwania"
   }
 }

@@ -42,7 +42,84 @@
     "auth": "Authentication failed. Please log in again.",
     "timeout": "Request timed out. Try a simpler query.",
     "rateLimit": "Rate limit exceeded. Try again later.",
-    "unknown": "Something went wrong."
+    "unknown": "Something went wrong.",
+    "showDetails": "Show details",
+    "BAD_REQUEST": {
+      "title": "Invalid Request",
+      "message": "The request format was invalid. Please check your input."
+    },
+    "UNAUTHORIZED": {
+      "title": "Authentication Required",
+      "message": "Please log in to continue."
+    },
+    "FORBIDDEN": {
+      "title": "Access Denied",
+      "message": "You don't have permission to perform this action."
+    },
+    "NOT_FOUND": {
+      "title": "Not Found",
+      "message": "The requested resource could not be found."
+    },
+    "RATE_LIMITED": {
+      "title": "Too Many Requests",
+      "message": "You've sent too many requests. Please slow down."
+    },
+    "PAYLOAD_TOO_LARGE": {
+      "title": "Message Too Long",
+      "message": "Your message is too long. Please shorten it and try again."
+    },
+    "INVALID_MODEL": {
+      "title": "Invalid Model",
+      "message": "The selected model is not available."
+    },
+    "INVALID_PROMPT": {
+      "title": "Invalid Prompt",
+      "message": "Please enter a message to send."
+    },
+    "INTERNAL_ERROR": {
+      "title": "Internal Error",
+      "message": "An unexpected error occurred. Please try again."
+    },
+    "PROVIDER_ERROR": {
+      "title": "AI Provider Error",
+      "message": "The AI provider returned an error."
+    },
+    "PROVIDER_TIMEOUT": {
+      "title": "AI Provider Timeout",
+      "message": "The AI provider took too long to respond."
+    },
+    "PROVIDER_UNAVAILABLE": {
+      "title": "AI Provider Unavailable",
+      "message": "The AI provider is temporarily unavailable."
+    },
+    "ALL_PROVIDERS_FAILED": {
+      "title": "All AI Providers Failed",
+      "message": "All AI providers are currently unavailable. Please try again later."
+    },
+    "GROUNDING_FAILED": {
+      "title": "Web Search Failed",
+      "message": "Web search failed, but the AI can still respond without external context."
+    },
+    "CACHE_ERROR": {
+      "title": "Cache Error",
+      "message": "A cache operation failed. The response may be slower."
+    },
+    "NETWORK_ERROR": {
+      "title": "Network Error",
+      "message": "Unable to connect to the server. Check your internet connection."
+    },
+    "TIMEOUT": {
+      "title": "Request Timeout",
+      "message": "The request took too long. Please try again."
+    },
+    "AUTH_EXPIRED": {
+      "title": "Session Expired",
+      "message": "Your session has expired. Please refresh the page."
+    },
+    "AUTH_INVALID": {
+      "title": "Invalid Credentials",
+      "message": "Your credentials are invalid. Please log in again."
+    }
   },
   "health": {
     "title": "Health Dashboard",
@@ -58,5 +135,47 @@
   "statusLabels": {
     "online": "Online",
     "offline": "Offline"
+  },
+  "feedback": {
+    "thanks": "Thanks!",
+    "helpful": "Helpful",
+    "notHelpful": "Not helpful",
+    "whatWrong": "What went wrong?"
+  },
+  "offline": {
+    "syncing": "Syncing...",
+    "offline": "You're offline",
+    "queued": "{{count}} messages queued",
+    "syncNow": "Sync now"
+  },
+  "common": {
+    "send": "Send",
+    "retry": "Try Again",
+    "dismiss": "Dismiss",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close"
+  },
+  "grounding": {
+    "label": "Web Search",
+    "toggle": "Toggle web search",
+    "enabled": "Search On",
+    "disabled": "Search Off",
+    "enableHint": "Enable web search for current information",
+    "disableHint": "Disable web search"
+  },
+  "sources": {
+    "title": "Sources",
+    "quality": "Quality",
+    "qualityHigh": "High",
+    "qualityMedium": "Medium",
+    "qualityLow": "Low",
+    "qualityTooltip": "Source quality based on relevance and diversity",
+    "showMore": "Show {{count}} more",
+    "showLess": "Show less",
+    "more": "more",
+    "fetched": "Fetched now",
+    "fallback": "Fallback",
+    "fallbackUsed": "Fallback search provider was used"
   }
 }
