@@ -29,7 +29,6 @@ const plugins: PluginOption[] = [
 
 export default defineConfig({
   plugins,
-  assetsInclude: ['**/*.html'],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
