@@ -14,7 +14,7 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'pnpm dev --host 0.0.0.0 --port 4173',
+    command: 'npm run preview -- --host 0.0.0.0 --port 4173',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
