@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:ollama": "node dev-ollama.mjs",
     "dev:node25": "node dev-server.mjs",
     "build": "node node_modules/typescript/bin/tsc && vite build",
     "preview": "vite preview",
