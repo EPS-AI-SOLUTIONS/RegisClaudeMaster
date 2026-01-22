@@ -1,338 +1,36 @@
 /**
  * Metrics Dashboard Component
  * Displays real-time metrics, alerts, and provider statistics
+ *
+ * Refactored: Sub-components extracted to ./metrics/
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
   Activity,
   AlertTriangle,
   AlertCircle,
   DollarSign,
   Clock,
-  TrendingUp,
   Server,
   RefreshCw,
   CheckCircle,
   XCircle,
-  ChevronDown,
-  ChevronUp,
   Download,
 } from 'lucide-react';
 
-// Types matching the API response
-interface RequestMetric {
-  id: string;
-  timestamp: number;
-  provider: string;
-  model: string;
-  tokens: number;
-  cost: number;
-  latency: number;
-  success: boolean;
-  errorType?: string;
-}
+// Types
+import type { DashboardData } from '../types/metrics';
 
-interface AggregatedMetrics {
-  totalRequests: number;
-  totalTokens: number;
-  totalCost: number;
-  avgLatency: number;
-  successRate: number;
-  errorsByType: Record<string, number>;
-  requestsByProvider: Record<string, number>;
-  costByProvider: Record<string, number>;
-  requestsPerMinute: number[];
-}
+// Utilities
+import { formatNumber, formatCurrency, formatLatency } from '../lib/format';
 
-interface LatencyPercentiles {
-  p50: number;
-  p95: number;
-  p99: number;
-}
-
-interface ProviderLatencyBreakdown {
-  provider: string;
-  avgLatency: number;
-  p50: number;
-  p95: number;
-  p99: number;
-  count: number;
-}
-
-interface TimeSeriesPoint {
-  timestamp: number;
-  requests: number;
-  tokens: number;
-  cost: number;
-  errors: number;
-}
-
-interface Alert {
-  id: string;
-  type: 'cost' | 'error_rate' | 'latency' | 'provider_down';
-  severity: 'warning' | 'critical';
-  message: string;
-  timestamp: number;
-  value: number;
-  threshold: number;
-  provider?: string;
-}
-
-interface DashboardData {
-  aggregated: AggregatedMetrics;
-  latencyPercentiles: LatencyPercentiles;
-  providerLatency: ProviderLatencyBreakdown[];
-  timeSeries: TimeSeriesPoint[];
-  recentErrors: RequestMetric[];
-  rollingErrorRate: number;
-  alerts: Alert[];
-  metricsCount: number;
-  timestamp: string;
-}
+// Sub-components
+import { AlertBadge, StatCard, ProviderCard, ErrorRow, Sparkline } from './metrics';
 
 // API base URL
 const API_BASE = '/api';
-
-/**
- * Format number with commas
- */
-function formatNumber(num: number): string {
-  return num.toLocaleString();
-}
-
-/**
- * Format currency
- */
-function formatCurrency(amount: number): string {
-  return `$${amount.toFixed(4)}`;
-}
-
-/**
- * Format latency
- */
-function formatLatency(ms: number): string {
-  if (ms < 1000) {
-    return `${Math.round(ms)}ms`;
-  }
-  return `${(ms / 1000).toFixed(2)}s`;
-}
-
-/**
- * Format relative time
- */
-function formatRelativeTime(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(minutes / 60);
-
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return new Date(timestamp).toLocaleDateString();
-}
-
-/**
- * Alert Badge Component
- */
-function AlertBadge({ alert }: { alert: Alert }) {
-  const isCritical = alert.severity === 'critical';
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      className={`flex items-start gap-3 p-4 rounded-xl border ${
-        isCritical
-          ? 'bg-red-500/10 border-red-500/30 text-red-200'
-          : 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-      }`}
-    >
-      {isCritical ? (
-        <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-      ) : (
-        <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="font-medium">{alert.message}</p>
-        <p className="text-xs opacity-70 mt-1">
-          {formatRelativeTime(alert.timestamp)} | Value: {alert.value.toFixed(2)} | Threshold: {alert.threshold}
-        </p>
-      </div>
-    </motion.div>
-  );
-}
-
-/**
- * Stat Card Component
- */
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  subValue,
-  trend,
-  colorClass = 'text-emerald-300',
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  subValue?: string;
-  trend?: 'up' | 'down' | 'neutral';
-  colorClass?: string;
-}) {
-  return (
-    <div className="bg-emerald-950/60 border border-emerald-400/20 rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-4 h-4 ${colorClass}`} />
-        <span className="text-emerald-300/70 text-sm">{label}</span>
-      </div>
-      <div className="flex items-end gap-2">
-        <span className="text-2xl font-semibold text-emerald-100">{value}</span>
-        {trend && (
-          <span
-            className={`text-xs ${
-              trend === 'up' ? 'text-emerald-400' : trend === 'down' ? 'text-red-400' : 'text-emerald-300/50'
-            }`}
-          >
-            {trend === 'up' ? (
-              <TrendingUp className="w-3 h-3 inline" />
-            ) : trend === 'down' ? (
-              <ChevronDown className="w-3 h-3 inline" />
-            ) : (
-              '-'
-            )}
-          </span>
-        )}
-      </div>
-      {subValue && <p className="text-xs text-emerald-300/50 mt-1">{subValue}</p>}
-    </div>
-  );
-}
-
-/**
- * Provider Card Component
- */
-function ProviderCard({
-  provider,
-  requests,
-  cost,
-  latency,
-}: {
-  provider: string;
-  requests: number;
-  cost: number;
-  latency?: ProviderLatencyBreakdown;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="bg-emerald-900/40 border border-emerald-400/20 rounded-xl p-4">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between text-left"
-      >
-        <div className="flex items-center gap-2">
-          <Server className="w-4 h-4 text-emerald-300" />
-          <span className="font-medium text-emerald-100 capitalize">{provider}</span>
-        </div>
-        {expanded ? (
-          <ChevronUp className="w-4 h-4 text-emerald-300/70" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-emerald-300/70" />
-        )}
-      </button>
-
-      <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
-        <div>
-          <p className="text-emerald-300/50">Requests</p>
-          <p className="text-emerald-100 font-medium">{formatNumber(requests)}</p>
-        </div>
-        <div>
-          <p className="text-emerald-300/50">Cost</p>
-          <p className="text-emerald-100 font-medium">{formatCurrency(cost)}</p>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {expanded && latency && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-emerald-400/10 text-sm">
-              <div>
-                <p className="text-emerald-300/50">P50</p>
-                <p className="text-emerald-100">{formatLatency(latency.p50)}</p>
-              </div>
-              <div>
-                <p className="text-emerald-300/50">P95</p>
-                <p className="text-emerald-100">{formatLatency(latency.p95)}</p>
-              </div>
-              <div>
-                <p className="text-emerald-300/50">P99</p>
-                <p className="text-emerald-100">{formatLatency(latency.p99)}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/**
- * Error Row Component
- */
-function ErrorRow({ error }: { error: RequestMetric }) {
-  return (
-    <div className="flex items-center gap-3 py-2 px-3 bg-red-500/5 rounded-lg border border-red-500/20">
-      <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-emerald-100 truncate">
-          {error.provider} / {error.model}
-        </p>
-        <p className="text-xs text-emerald-300/50">
-          {error.errorType ?? 'Unknown error'} | {formatRelativeTime(error.timestamp)}
-        </p>
-      </div>
-      <span className="text-xs text-emerald-300/50">{formatLatency(error.latency)}</span>
-    </div>
-  );
-}
-
-/**
- * Simple Sparkline Component
- */
-function Sparkline({ data, height = 40 }: { data: number[]; height?: number }) {
-  const max = Math.max(...data, 1);
-  const width = 200;
-  const barWidth = width / data.length - 1;
-
-  return (
-    <svg width={width} height={height} className="overflow-visible">
-      {data.map((value, index) => {
-        const barHeight = (value / max) * height;
-        return (
-          <rect
-            key={index}
-            x={index * (barWidth + 1)}
-            y={height - barHeight}
-            width={barWidth}
-            height={barHeight}
-            className="fill-emerald-400/60"
-            rx={1}
-          />
-        );
-      })}
-    </svg>
-  );
-}
 
 /**
  * Main Dashboard Component
@@ -396,6 +94,7 @@ export function MetricsDashboard() {
     }
   };
 
+  // Loading state
   if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -405,6 +104,7 @@ export function MetricsDashboard() {
     );
   }
 
+  // Error state
   if (error && !data) {
     return (
       <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">

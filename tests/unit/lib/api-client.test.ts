@@ -118,7 +118,8 @@ describe('api-client', () => {
         json: () => Promise.resolve({ error: 'Invalid prompt' }),
       } as Response);
 
-      await expect(executePrompt('test prompt')).rejects.toThrow('Invalid prompt');
+      // Refactored: error handling now uses error codes instead of messages
+      await expect(executePrompt('test prompt')).rejects.toThrow('UNKNOWN');
     });
 
     it('handles malformed error response', async () => {
@@ -128,7 +129,8 @@ describe('api-client', () => {
         json: () => Promise.reject(new Error('Invalid JSON')),
       } as Response);
 
-      await expect(executePrompt('test prompt')).rejects.toThrow('Unknown error');
+      // Refactored: error handling now uses error codes instead of messages
+      await expect(executePrompt('test prompt')).rejects.toThrow('UNKNOWN');
     });
 
     it('sends request without model parameter', async () => {

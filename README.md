@@ -80,31 +80,131 @@ Regis Claude Master is a full-stack AI research assistant that combines:
 
 ```
 RegisClaudeMaster/
-├── api/                    # Edge functions
-│   ├── execute.ts          # Main request handler
-│   ├── health.ts           # Health dashboard
-│   ├── models.ts           # Model listing
-│   └── auth/               # JWT auth endpoints
-├── src/                    # React frontend
+├── api/                        # Vercel Edge Functions
+│   ├── execute.ts              # Main request handler
+│   ├── stream.ts               # Streaming response handler
+│   ├── health.ts               # Health check endpoint
+│   ├── models.ts               # Available models endpoint
+│   ├── metrics.ts              # Metrics collection
+│   ├── metrics-dashboard.ts    # Dashboard data aggregation
+│   ├── alerts.ts               # Alert management
+│   ├── providers.ts            # AI provider orchestration
+│   ├── provider-health.ts      # Provider health monitoring
+│   ├── provider-admin.ts       # Provider administration
+│   ├── provider-config.ts      # Provider configuration
+│   ├── grounding.ts            # Web grounding (Google CSE)
+│   ├── cache.ts                # Response caching
+│   ├── cache-admin.ts          # Cache administration
+│   ├── circuit-breaker.ts      # Circuit breaker pattern
+│   ├── dedup.ts                # Request deduplication
+│   ├── rate-limit.ts           # Rate limiting
+│   ├── cors.ts                 # CORS middleware
+│   ├── errors.ts               # Error handling utilities
+│   ├── logger.ts               # Logging utilities
+│   ├── logs.ts                 # Log retrieval endpoint
+│   ├── audit.ts                # Audit logging
+│   ├── auth-utils.ts           # JWT utilities
+│   └── auth/                   # JWT auth endpoints
+│       ├── login.ts
+│       ├── logout.ts
+│       └── refresh.ts
+├── src/                        # React Frontend
 │   ├── components/
-│   │   ├── ChatInterface.tsx
-│   │   └── ResearchStatus.tsx
+│   │   ├── ChatInterface.tsx       # Main chat UI
+│   │   ├── ResearchStatus.tsx      # Research indicator
+│   │   ├── MetricsDashboard.tsx    # Main metrics dashboard
+│   │   ├── CostDisplay.tsx         # Token/cost display
+│   │   ├── ErrorBoundary.tsx       # React error boundary
+│   │   ├── ErrorDisplay.tsx        # Error message display
+│   │   ├── FeedbackButton.tsx      # User feedback
+│   │   ├── GroundingToggle.tsx     # Web grounding toggle
+│   │   ├── OfflineIndicator.tsx    # Offline status
+│   │   ├── ProgressIndicator.tsx   # Loading progress
+│   │   ├── ProviderManager.tsx     # Provider selection
+│   │   ├── SkeletonMessage.tsx     # Loading skeleton
+│   │   ├── SourcesList.tsx         # Search sources
+│   │   └── metrics/                # Metrics sub-components
+│   │       ├── index.ts            # Barrel export
+│   │       ├── AlertBadge.tsx      # Alert indicator
+│   │       ├── ErrorRow.tsx        # Error list row
+│   │       ├── ProviderCard.tsx    # Provider status card
+│   │       ├── Sparkline.tsx       # Mini chart
+│   │       └── StatCard.tsx        # Statistics card
+│   ├── hooks/
+│   │   ├── useChatState.ts         # Chat state management
+│   │   ├── useOfflineQueue.ts      # Offline request queue
+│   │   └── useOptimisticUpdates.ts # Optimistic UI updates
+│   ├── types/
+│   │   └── metrics.ts              # Metrics type definitions
 │   ├── lib/
-│   │   ├── api-client.ts
-│   │   ├── storage.ts
-│   │   └── utils.ts
+│   │   ├── api-client.ts           # API client with retry
+│   │   ├── crypto.ts               # AES-256-GCM encryption
+│   │   ├── backup.ts               # Encrypted chat backups
+│   │   ├── storage.ts              # IndexedDB storage
+│   │   ├── http-error-handler.ts   # Centralized HTTP errors
+│   │   ├── error-handler.ts        # General error handling
+│   │   ├── format.ts               # Formatting utilities
+│   │   ├── stream-parser.ts        # SSE stream parsing
+│   │   ├── health.ts               # Health check client
+│   │   ├── models.ts               # Models client
+│   │   ├── models-store.ts         # Models Zustand store
+│   │   ├── preferences-store.ts    # User preferences store
+│   │   ├── types.ts                # Shared type definitions
+│   │   └── utils.ts                # General utilities
+│   ├── i18n/
+│   │   ├── index.ts                # i18next configuration
+│   │   └── locales/
+│   │       ├── en.json             # English translations
+│   │       └── pl.json             # Polish translations
 │   ├── styles/
-│   │   └── globals.css
-│   ├── App.tsx
-│   └── main.tsx
+│   │   └── globals.css             # Tailwind + Matrix theme
+│   ├── App.tsx                     # Main app component
+│   ├── main.tsx                    # Entry point
+│   └── vite-env.d.ts               # Vite type definitions
 ├── public/
 │   └── favicon.svg
-├── vercel.json             # Vercel configuration
+├── vercel.json                 # Vercel configuration
 ├── package.json
 ├── tailwind.config.js
 ├── tsconfig.json
-└── vite.config.ts
+├── vite.config.ts
+├── vitest.config.ts            # Unit test configuration
+└── playwright.config.ts        # E2E test configuration
 ```
+
+## Modular Architecture
+
+The codebase follows a modular architecture with clear separation of concerns:
+
+### Crypto Module (`src/lib/crypto.ts`)
+- AES-256-GCM encryption with non-extractable keys
+- Keys stored securely in IndexedDB
+- Protection against XSS key extraction
+
+### Backup Module (`src/lib/backup.ts`)
+- Encrypted chat backup storage
+- Automatic pruning (max 10 backups)
+- Auto-restore on app load
+
+### HTTP Error Handler (`src/lib/http-error-handler.ts`)
+- Centralized HTTP error handling
+- Automatic auth token refresh
+- Timeout management with AbortController
+
+### Chat State Hook (`src/hooks/useChatState.ts`)
+- Complete chat state management
+- Undo/redo history
+- Auto-backup integration
+- Request cancellation support
+
+### Metrics Dashboard (`src/components/metrics/`)
+- Component-based dashboard architecture
+- StatCard, ProviderCard, AlertBadge, ErrorRow, Sparkline
+- Type-safe with dedicated types (`src/types/metrics.ts`)
+
+### Format Utilities (`src/lib/format.ts`)
+- Reusable formatting functions
+- Number, currency, latency, relative time, percentage, bytes
 
 ## Deployment
 

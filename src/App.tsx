@@ -1,3 +1,9 @@
+/**
+ * Regis Matrix Lab - Main Application
+ *
+ * Refactored: Chat state extracted to useChatState hook
+ */
+
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, BookOpen, Zap, Sun, Moon, Globe, Trash2, Languages, RefreshCw } from 'lucide-react';
@@ -8,37 +14,43 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { ChatInterface } from './components/ChatInterface';
 import { ResearchStatus } from './components/ResearchStatus';
-import { executePrompt } from './lib/api-client';
-import type { Message } from './lib/types';
+import type { HealthModelStatus } from './lib/health';
 import { useModelsStore } from './lib/models-store';
-import { fetchHealth, type HealthModelStatus } from './lib/health';
-import { loadLatestBackup, saveBackup, initializeStorage } from './lib/storage';
+import { fetchHealth } from './lib/health';
+import { initializeStorage } from './lib/storage';
 import { usePreferencesStore } from './lib/preferences-store';
+import { useChatState } from './hooks/useChatState';
 
 function App() {
+  // Preferences
   const { theme, setTheme, language, setLanguage } = usePreferencesStore();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isResearching, setIsResearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Chat state (extracted to hook)
+  const {
+    messages,
+    isLoading,
+    isResearching,
+    error,
+    isEmpty,
+    sendMessage,
+    clearChat,
+    undo,
+    redo,
+  } = useChatState();
+
+  // Local UI state
   const [selectedModel, setSelectedModel] = useState<string>('auto');
-  const [history, setHistory] = useState<Message[][]>([]);
-  const [redoStack, setRedoStack] = useState<Message[][]>([]);
   const [showErrors, setShowErrors] = useState(false);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [, setIsAppInitialized] = useState(false);
+
   const { t, i18n } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   // Models store with lazy loading
-  const {
-    models,
-    isLoading: isLoadingModels,
-    fetchModels,
-    refreshModels,
-  } = useModelsStore();
+  const { models, isLoading: isLoadingModels, fetchModels, refreshModels } = useModelsStore();
 
+  // Form validation schema
   const schema = useMemo(
     () =>
       z.object({
@@ -53,61 +65,45 @@ function App() {
   });
   const promptRegister = register('prompt');
 
+  // Health query
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: fetchHealth,
     refetchInterval: 300000,
   });
 
-  // Initialize app: secure storage + lazy load models
+  // Initialize app
   useEffect(() => {
     let isMounted = true;
 
     async function initialize() {
       try {
-        // Initialize secure storage (migrate old keys)
         await initializeStorage();
-
-        // Lazy load models from API
         await fetchModels();
-
-        if (isMounted) {
-          setIsAppInitialized(true);
-        }
+        if (isMounted) setIsAppInitialized(true);
       } catch (err) {
         console.warn('App initialization error:', err);
-        if (isMounted) {
-          setIsAppInitialized(true); // Continue even on error
-        }
+        if (isMounted) setIsAppInitialized(true);
       }
     }
 
     void initialize();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [fetchModels]);
 
-  // Auto-refresh models when user returns to tab (visibility change)
+  // Auto-refresh models on tab focus
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && isOnline) {
-        void fetchModels(); // Will use cache if not expired
+        void fetchModels();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [fetchModels, isOnline]);
 
-  // Manual refresh handler
-  const handleRefreshModels = useCallback(() => {
-    void refreshModels();
-  }, [refreshModels]);
-
+  // Theme initialization
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: light)');
     const stored = localStorage.getItem('regis-theme');
@@ -123,51 +119,23 @@ function App() {
     };
 
     media.addEventListener('change', handleChange);
-    return () => {
-      media.removeEventListener('change', handleChange);
-    };
+    return () => media.removeEventListener('change', handleChange);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount - setTheme/setLanguage are stable from zustand
+  }, []);
 
+  // Theme persistence
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('regis-theme', theme);
   }, [theme]);
 
+  // Language persistence
   useEffect(() => {
     void i18n.changeLanguage(language);
     localStorage.setItem('regis-language', language);
   }, [i18n, language]);
 
-  useEffect(() => {
-    let isMounted = true;
-    loadLatestBackup()
-      .then((stored) => {
-        if (stored && isMounted) {
-          setMessages(stored);
-        }
-      })
-      .catch((err) => console.warn('Backup restore failed', err));
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      saveBackup(messages).catch((err) => console.warn('Backup failed', err));
-    }, 300000);
-    return () => clearInterval(interval);
-  }, [messages]);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => setShowErrors(true), 300);
-    return () => {
-      setShowErrors(false);
-      clearTimeout(timeout);
-    };
-  }, [formState.errors]);
-
+  // Online/offline detection
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -179,106 +147,52 @@ function App() {
     };
   }, []);
 
-  const handleClearChat = useCallback(() => {
-    if (messages.length === 0) return;
-    setHistory((prev) => [...prev, messages]);
-    setRedoStack([]);
-    setMessages([]);
-    setError(null);
-  }, [messages]);
+  // Form error display delay
+  useEffect(() => {
+    const timeout = setTimeout(() => setShowErrors(true), 300);
+    return () => {
+      setShowErrors(false);
+      clearTimeout(timeout);
+    };
+  }, [formState.errors]);
 
-  const handleUndo = useCallback(() => {
-    const previous = history.at(-1);
-    if (!previous) return;
-    setHistory((prev) => prev.slice(0, -1));
-    setRedoStack((prev) => [...prev, messages]);
-    setMessages(previous);
-  }, [history, messages]);
-
-  const handleRedo = useCallback(() => {
-    const next = redoStack.at(-1);
-    if (!next) return;
-    setRedoStack((prev) => prev.slice(0, -1));
-    setHistory((prev) => [...prev, messages]);
-    setMessages(next);
-  }, [redoStack, messages]);
-
-  // Keyboard shortcuts - defined after handlers
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        inputRef.current?.focus();
-      }
-      if (event.ctrlKey && event.key.toLowerCase() === 'l') {
-        event.preventDefault();
-        handleClearChat();
-      }
-      if (event.ctrlKey && event.key.toLowerCase() === 'z') {
-        event.preventDefault();
-        handleUndo();
-      }
-      if (event.ctrlKey && event.key.toLowerCase() === 'y') {
-        event.preventDefault();
-        handleRedo();
+      if (event.ctrlKey) {
+        switch (event.key.toLowerCase()) {
+          case 'k':
+            event.preventDefault();
+            inputRef.current?.focus();
+            break;
+          case 'l':
+            event.preventDefault();
+            clearChat();
+            break;
+          case 'z':
+            event.preventDefault();
+            undo();
+            break;
+          case 'y':
+            event.preventDefault();
+            redo();
+            break;
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleClearChat, handleUndo, handleRedo]);
+  }, [clearChat, undo, redo]);
 
+  // Manual refresh handler
+  const handleRefreshModels = useCallback(() => {
+    void refreshModels();
+  }, [refreshModels]);
+
+  // Form submit handler
   const onSubmit = async ({ prompt }: { prompt: string }) => {
-    if (isLoading) return;
-
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const userMessage: Message = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      role: 'user',
-      content: prompt.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setRedoStack([]);
-    setIsLoading(true);
-    setIsResearching(true);
-    setError(null);
+    await sendMessage(prompt, selectedModel === 'auto' ? undefined : selectedModel);
     reset();
-
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      setIsResearching(false);
-
-      const response = await executePrompt(prompt, selectedModel, controller.signal);
-
-      const assistantMessage: Message = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        role: 'assistant',
-        content: response.response,
-        sources: response.sources,
-        modelUsed: response.model_used,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'UNKNOWN';
-      const mapped =
-        message === 'AUTH_ERROR'
-          ? t('errors.auth')
-          : message === 'TIMEOUT'
-          ? t('errors.timeout')
-          : message === 'RATE_LIMIT'
-          ? t('errors.rateLimit')
-          : t('errors.unknown');
-      setError(mapped);
-    } finally {
-      setIsLoading(false);
-      setIsResearching(false);
-    }
   };
 
   return (
@@ -288,12 +202,7 @@ function App() {
         <div className="max-w-5xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-emerald-400/20 flex items-center justify-center border border-emerald-400/40">
-              <img
-                src="https://pawelserkowski.pl/logo.webp"
-                alt="Logo Regis"
-                className="w-8 h-8"
-                loading="lazy"
-              />
+              <img src="https://pawelserkowski.pl/logo.webp" alt="Logo Regis" className="w-8 h-8" loading="lazy" />
             </div>
             <div>
               <h1 className="text-xl font-semibold text-emerald-100">{t('app.title')}</h1>
@@ -321,11 +230,7 @@ function App() {
               aria-label={theme === 'dark' ? t('app.themeLight') : t('app.themeDark')}
               title={theme === 'dark' ? t('app.themeLight') : t('app.themeDark')}
             >
-              {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-emerald-200" />
-              ) : (
-                <Moon className="w-4 h-4 text-emerald-200" />
-              )}
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-emerald-200" /> : <Moon className="w-4 h-4 text-emerald-200" />}
             </button>
             <button
               type="button"
@@ -343,46 +248,39 @@ function App() {
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 py-8 pb-36">
         {/* Empty State */}
-        {messages.length === 0 && !isLoading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-16"
-          >
+        {isEmpty && !isLoading && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-16">
             <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center">
               <BookOpen className="w-10 h-10 text-emerald-300" />
             </div>
             <h2 className="text-2xl font-semibold text-emerald-100 mb-2">{t('app.welcomeTitle')}</h2>
             <p className="text-emerald-200/70 max-w-md mx-auto mb-8">{t('app.welcomeBody')}</p>
             <div className="flex flex-wrap justify-center gap-2">
-              {[
-                'Wyjaśnij komputery kwantowe',
-                'Napisz sortowanie w Pythonie',
-                'Porównaj REST vs GraphQL',
-              ].map((suggestion) => (
-                <button
-                  key={suggestion}
-                  onClick={() => {
-                    reset({ prompt: suggestion });
-                    inputRef.current?.focus();
-                  }}
-                  className="px-4 py-2 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/70 text-emerald-200 text-sm transition-colors border border-emerald-400/20"
-                >
-                  {suggestion}
-                </button>
-              ))}
+              {['Wyjaśnij komputery kwantowe', 'Napisz sortowanie w Pythonie', 'Porównaj REST vs GraphQL'].map(
+                (suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => {
+                      reset({ prompt: suggestion });
+                      inputRef.current?.focus();
+                    }}
+                    className="px-4 py-2 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/70 text-emerald-200 text-sm transition-colors border border-emerald-400/20"
+                  >
+                    {suggestion}
+                  </button>
+                )
+              )}
             </div>
           </motion.div>
         )}
 
         {/* Research Status */}
-        <AnimatePresence>
-          {isResearching && <ResearchStatus />}
-        </AnimatePresence>
+        <AnimatePresence>{isResearching && <ResearchStatus />}</AnimatePresence>
 
         {/* Chat Messages */}
         <ChatInterface messages={messages} isLoading={isLoading} />
 
+        {/* Health Panel */}
         {health && (
           <section className="mt-10 rounded-2xl bg-emerald-950/60 border border-emerald-400/20 p-6">
             <div className="flex items-center gap-2 mb-4 text-emerald-100">
@@ -391,10 +289,7 @@ function App() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs text-emerald-200/80">
               {health.providers.map((provider: HealthModelStatus) => (
-                <div
-                  key={provider.model}
-                  className="rounded-xl border border-emerald-400/20 bg-emerald-900/40 p-3"
-                >
+                <div key={provider.model} className="rounded-xl border border-emerald-400/20 bg-emerald-900/40 p-3">
                   <p className="text-emerald-100 font-semibold">{provider.model}</p>
                   <p>{t('health.status')}: {provider.status}</p>
                   <p>{t('health.tokens')}: {provider.tokens}</p>
@@ -427,7 +322,7 @@ function App() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleClearChat}
+                onClick={clearChat}
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-400/20 bg-emerald-950/60 hover:bg-emerald-900/70"
                 title={`${t('app.clearChat')} (${t('app.clearChatShortcut')})`}
               >
@@ -443,9 +338,7 @@ function App() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-emerald-300/70" htmlFor="model-select">
-                {t('labels.model')}
-              </label>
+              <label className="text-emerald-300/70" htmlFor="model-select">{t('labels.model')}</label>
               <select
                 id="model-select"
                 value={selectedModel}
@@ -455,9 +348,7 @@ function App() {
               >
                 <option value="auto">Auto</option>
                 {models.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.label}
-                  </option>
+                  <option key={model.id} value={model.id}>{model.label}</option>
                 ))}
               </select>
               <button
@@ -469,11 +360,7 @@ function App() {
               >
                 <RefreshCw className={`w-3 h-3 text-emerald-300 ${isLoadingModels ? 'animate-spin' : ''}`} />
               </button>
-              {models.length > 0 && (
-                <span className="text-emerald-400/60 text-[10px]">
-                  ({models.length})
-                </span>
-              )}
+              {models.length > 0 && <span className="text-emerald-400/60 text-[10px]">({models.length})</span>}
             </div>
           </div>
           <div className="relative">
@@ -504,9 +391,7 @@ function App() {
           {showErrors && formState.errors.prompt && (
             <p className="mt-2 text-xs text-red-300">{formState.errors.prompt.message}</p>
           )}
-          <p className="text-center text-xs text-emerald-300/60 mt-3">
-            {t('app.poweredBy')}
-          </p>
+          <p className="text-center text-xs text-emerald-300/60 mt-3">{t('app.poweredBy')}</p>
         </form>
       </div>
     </div>

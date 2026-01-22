@@ -1,7 +1,7 @@
 # DOKUMENTACJA TECHNICZNA
-## Regis Matrix Lab v2.0.0
+## Regis Matrix Lab v2.1.0
 
-**Ostatnia aktualizacja:** 2026-01-20
+**Ostatnia aktualizacja:** 2026-01-22
 **Autor:** Claude Opus 4.5 + Team
 
 ---
@@ -104,10 +104,10 @@ Playwright (E2E) + Vitest (Unit)
 │                           KLIENT (Browser)                               │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  React 19 App                                                            │
-│  ├── App.tsx (State orchestration)                                       │
-│  ├── Components (ChatInterface, MetricsDashboard, ProviderManager)       │
-│  ├── Hooks (useOptimisticUpdates, useOfflineQueue)                       │
-│  ├── Lib (api-client, stream-parser, error-handler)                      │
+│  ├── App.tsx (402 linii - zrefaktoryzowane)                              │
+│  ├── Components (ChatInterface, MetricsDashboard/*, ProviderManager)     │
+│  ├── Hooks (useChatState, useOptimisticUpdates, useOfflineQueue)         │
+│  ├── Lib (api-client, stream-parser, http-error-handler, crypto, backup) │
 │  └── Service Worker (PWA offline)                                        │
 └────────────────────────────┬────────────────────────────────────────────┘
                              │ HTTPS (fetch + SSE)
@@ -216,12 +216,12 @@ RegisClaudeMaster/
 │       └── auth-utils.ts
 │
 ├── src/                          # Frontend - React
-│   ├── App.tsx                   # Root component
+│   ├── App.tsx                   # Root component (402 linii - po refaktoryzacji)
 │   ├── main.tsx                  # Entry point
 │   │
 │   ├── components/               # React components
 │   │   ├── ChatInterface.tsx     # Main chat UI
-│   │   ├── MetricsDashboard.tsx  # Metrics visualization
+│   │   ├── MetricsDashboard.tsx  # Metrics orchestration (319 linii - po refaktoryzacji)
 │   │   ├── ProviderManager.tsx   # Provider management UI
 │   │   ├── ErrorDisplay.tsx      # Error display component
 │   │   ├── SourcesList.tsx       # Grounding sources display
@@ -230,19 +230,35 @@ RegisClaudeMaster/
 │   │   ├── ProgressIndicator.tsx # Streaming progress
 │   │   ├── FeedbackButton.tsx    # User feedback
 │   │   ├── OfflineIndicator.tsx  # Offline status banner
+│   │   │
+│   │   ├── metrics/              # [NOWE] Wyekstraktowane komponenty metryk
+│   │   │   ├── AlertBadge.tsx    # Badge dla alertów
+│   │   │   ├── StatCard.tsx      # Karta statystyk
+│   │   │   ├── ProviderCard.tsx  # Karta providera
+│   │   │   ├── ErrorRow.tsx      # Wiersz błędu
+│   │   │   └── Sparkline.tsx     # Mini wykres sparkline
+│   │   │
 │   │   └── ui/                   # Reusable UI components
+│   │
+│   ├── types/                    # [NOWE] Definicje typów TypeScript
+│   │   └── metrics.ts            # Typy dla dashboard metryk
 │   │
 │   ├── hooks/                    # Custom React hooks
 │   │   ├── useOptimisticUpdates.ts
-│   │   └── useOfflineQueue.ts
+│   │   ├── useOfflineQueue.ts
+│   │   └── useChatState.ts       # [NOWE] Hook zarządzania stanem czatu
 │   │
 │   ├── lib/                      # Utilities
 │   │   ├── api-client.ts         # API communication
 │   │   ├── stream-parser.ts      # SSE stream parsing
 │   │   ├── error-handler.ts      # Client-side error handling
+│   │   ├── http-error-handler.ts # [NOWE] Scentralizowana obsługa błędów HTTP
+│   │   ├── format.ts             # [NOWE] Formatowanie liczb/waluty/czasu
+│   │   ├── crypto.ts             # [NOWE] AES-256-GCM szyfrowanie
+│   │   ├── backup.ts             # [NOWE] Zarządzanie backupami (saveBackup/loadLatestBackup)
+│   │   ├── storage.ts            # Orkiestracja storage (po refaktoryzacji)
 │   │   ├── models-store.ts       # Zustand models store
 │   │   ├── preferences-store.ts  # User preferences
-│   │   ├── storage.ts            # IndexedDB/localStorage
 │   │   └── utils.ts              # General utilities
 │   │
 │   └── i18n/                     # Internationalization
@@ -529,15 +545,30 @@ Główny interfejs czatu z obsługą:
 - Wyświetlania źródeł
 - Obsługi błędów
 
-### MetricsDashboard.tsx
+### MetricsDashboard.tsx (ZREFAKTORYZOWANE)
 
-Dashboard metryk z:
-- Wykresami latencji
-- Kosztami per provider
-- Alertami
-- Eksportem danych
+> **Status:** DONE - Refaktoryzacja zakończona 2026-01-22
+> **Przed:** 618 linii | **Po:** 319 linii | **Redukcja:** 48%
+
+Dashboard metryk po refaktoryzacji został podzielony na mniejsze komponenty:
+- `MetricsDashboard.tsx` - główny komponent orkiestracji (319 linii)
+- `src/components/metrics/AlertBadge.tsx` - badge dla alertów
+- `src/components/metrics/StatCard.tsx` - karta pojedynczej statystyki
+- `src/components/metrics/ProviderCard.tsx` - karta providera z statusem
+- `src/components/metrics/ErrorRow.tsx` - wiersz błędu w tabeli
+- `src/components/metrics/Sparkline.tsx` - mini wykres sparkline
+
+**Typy wyekstraktowane do:** `src/types/metrics.ts`
 
 ```tsx
+// src/components/MetricsDashboard.tsx - główny komponent orkiestracji
+import { AlertBadge } from './metrics/AlertBadge';
+import { StatCard } from './metrics/StatCard';
+import { ProviderCard } from './metrics/ProviderCard';
+import { ErrorRow } from './metrics/ErrorRow';
+import { Sparkline } from './metrics/Sparkline';
+import type { DashboardData, ProviderMetrics } from '@/types/metrics';
+
 export function MetricsDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -556,6 +587,47 @@ export function MetricsDashboard() {
       <LatencyChart timeSeries={data?.timeSeries} />
       <ProviderCards providers={data?.providerBreakdown} />
       <AlertsList alerts={data?.activeAlerts} />
+    </div>
+  );
+}
+```
+
+### Wyekstraktowane komponenty metryk
+
+```tsx
+// src/components/metrics/StatCard.tsx
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon?: React.ReactNode;
+  trend?: 'up' | 'down' | 'neutral';
+  sparklineData?: number[];
+}
+
+export function StatCard({ title, value, icon, trend, sparklineData }: StatCardProps) {
+  return (
+    <div className="bg-black/20 rounded-lg p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-emerald-400/60 text-sm">{title}</span>
+        {icon}
+      </div>
+      <div className="text-2xl font-bold text-emerald-300 mt-2">{value}</div>
+      {sparklineData && <Sparkline data={sparklineData} />}
+    </div>
+  );
+}
+
+// src/components/metrics/ProviderCard.tsx
+export function ProviderCard({ provider }: { provider: ProviderMetrics }) {
+  return (
+    <div className="bg-black/20 rounded-lg p-4 border border-emerald-500/20">
+      <div className="flex items-center gap-2">
+        <StatusIndicator status={provider.status} />
+        <span className="font-medium">{provider.name}</span>
+      </div>
+      <div className="mt-2 text-sm text-emerald-400/60">
+        Latency: {provider.avgLatency}ms | Success: {provider.successRate}%
+      </div>
     </div>
   );
 }
@@ -666,6 +738,86 @@ export function useOfflineQueue() {
   }, [isOnline, queue]);
 
   return { queue, isOnline, enqueue, processQueue };
+}
+```
+
+### useChatState.ts (NOWE - ZREFAKTORYZOWANE)
+
+> **Status:** DONE - Wyekstraktowane z App.tsx 2026-01-22
+> **App.tsx przed:** 516 linii | **App.tsx po:** 402 linii | **Redukcja:** 22%
+
+Hook wyekstraktowany z App.tsx do zarządzania stanem czatu:
+
+```typescript
+// src/hooks/useChatState.ts
+interface ChatState {
+  messages: Message[];
+  isLoading: boolean;
+  error: ApiError | null;
+  currentModel: string;
+  groundingEnabled: boolean;
+}
+
+interface UseChatStateReturn {
+  state: ChatState;
+  sendMessage: (content: string) => Promise<void>;
+  clearMessages: () => void;
+  setModel: (model: string) => void;
+  toggleGrounding: () => void;
+  retryLastMessage: () => Promise<void>;
+  dismissError: () => void;
+}
+
+export function useChatState(initialModel = 'claude-3-sonnet'): UseChatStateReturn {
+  const [state, dispatch] = useReducer(chatReducer, {
+    messages: [],
+    isLoading: false,
+    error: null,
+    currentModel: initialModel,
+    groundingEnabled: false,
+  });
+
+  const { enqueue, processQueue, isOnline } = useOfflineQueue();
+  const { addOptimisticMessage, updateAssistantMessage } = useOptimisticMessages();
+
+  const sendMessage = useCallback(async (content: string) => {
+    if (!isOnline) {
+      enqueue(content, state.currentModel);
+      return;
+    }
+
+    const placeholderId = addOptimisticMessage(content);
+    dispatch({ type: 'SET_LOADING', payload: true });
+
+    try {
+      const response = await streamPrompt(content, state.currentModel, {
+        onChunk: (chunk) => updateAssistantMessage(placeholderId, chunk),
+        groundingEnabled: state.groundingEnabled,
+      });
+
+      updateAssistantMessage(placeholderId, response.content, true);
+      dispatch({ type: 'SET_LOADING', payload: false });
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: handleHttpError(error) });
+    }
+  }, [isOnline, state.currentModel, state.groundingEnabled]);
+
+  // Auto-process offline queue when coming online
+  useEffect(() => {
+    if (isOnline) {
+      processQueue(sendMessage);
+    }
+  }, [isOnline]);
+
+  return {
+    state,
+    sendMessage,
+    clearMessages: () => dispatch({ type: 'CLEAR_MESSAGES' }),
+    setModel: (model) => dispatch({ type: 'SET_MODEL', payload: model }),
+    toggleGrounding: () => dispatch({ type: 'TOGGLE_GROUNDING' }),
+    retryLastMessage: () => { /* ... */ },
+    dismissError: () => dispatch({ type: 'DISMISS_ERROR' }),
+  };
 }
 ```
 
@@ -2660,6 +2812,148 @@ export async function retryWithBackoff<T>(
 }
 ```
 
+## 16.5 HTTP Error Handler: src/lib/http-error-handler.ts (NOWE)
+
+> **Status:** DONE - Wyekstraktowane 2026-01-22
+> Scentralizowana obsługa błędów HTTP z mapowaniem na kody aplikacyjne.
+
+```typescript
+// src/lib/http-error-handler.ts
+import { ErrorCode, createApiError, type ApiError } from './error-handler';
+
+export interface HttpErrorContext {
+  url: string;
+  method: string;
+  status?: number;
+  statusText?: string;
+  body?: unknown;
+}
+
+export function handleHttpError(error: unknown, context?: Partial<HttpErrorContext>): ApiError {
+  // Fetch errors (network)
+  if (error instanceof TypeError) {
+    return createApiError(ErrorCode.NETWORK_ERROR, {
+      originalMessage: error.message,
+      ...context,
+    });
+  }
+
+  // Response errors
+  if (error instanceof Response) {
+    return mapHttpStatusToApiError(error.status, context);
+  }
+
+  // Already parsed API error
+  if (isApiError(error)) {
+    return error;
+  }
+
+  // Unknown error
+  return createApiError(ErrorCode.INTERNAL_ERROR, {
+    originalMessage: String(error),
+    ...context,
+  });
+}
+
+export function mapHttpStatusToApiError(status: number, context?: Partial<HttpErrorContext>): ApiError {
+  const statusMap: Record<number, ErrorCode> = {
+    400: ErrorCode.BAD_REQUEST,
+    401: ErrorCode.UNAUTHORIZED,
+    403: ErrorCode.FORBIDDEN,
+    404: ErrorCode.NOT_FOUND,
+    429: ErrorCode.RATE_LIMITED,
+    500: ErrorCode.INTERNAL_ERROR,
+    502: ErrorCode.PROVIDER_UNAVAILABLE,
+    503: ErrorCode.PROVIDER_UNAVAILABLE,
+    504: ErrorCode.TIMEOUT,
+  };
+
+  const errorCode = statusMap[status] || ErrorCode.INTERNAL_ERROR;
+  return createApiError(errorCode, { httpStatus: status, ...context });
+}
+
+// Helper for fetch with automatic error handling
+export async function fetchWithErrorHandling<T>(
+  url: string,
+  options?: RequestInit
+): Promise<T> {
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    throw handleHttpError(response, {
+      url,
+      method: options?.method || 'GET',
+      status: response.status,
+      statusText: response.statusText,
+    });
+  }
+
+  return response.json();
+}
+```
+
+## 16.6 Format Utilities: src/lib/format.ts (NOWE)
+
+> **Status:** DONE - Utworzone 2026-01-22
+> Narzędzia formatowania dla dashboardu metryk i UI.
+
+```typescript
+// src/lib/format.ts
+
+// Number formatting
+export function formatNumber(value: number, decimals = 0): string {
+  return new Intl.NumberFormat('pl-PL', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+}
+
+export function formatCompact(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(value);
+}
+
+// Currency formatting
+export function formatCurrency(value: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(value);
+}
+
+// Time formatting
+export function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`;
+}
+
+export function formatRelativeTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+
+  if (diff < 60_000) return 'Just now';
+  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h ago`;
+  return `${Math.floor(diff / 86400_000)}d ago`;
+}
+
+// Percentage formatting
+export function formatPercent(value: number, decimals = 1): string {
+  return `${(value * 100).toFixed(decimals)}%`;
+}
+
+// Bytes formatting
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+```
+
 ---
 
 # 17. PROVIDER MANAGEMENT
@@ -2997,70 +3291,166 @@ export default i18n;
 
 ---
 
-# 20. STORAGE I SZYFROWANIE
+# 20. STORAGE I SZYFROWANIE (ZREFAKTORYZOWANE)
 
-## 20.1 IndexedDB + AES-256-GCM
+> **Status:** DONE - Refaktoryzacja zakończona 2026-01-22
+> **Nowa struktura modułów:**
+> - `src/lib/crypto.ts` - AES-256-GCM szyfrowanie/deszyfrowanie
+> - `src/lib/backup.ts` - saveBackup/loadLatestBackup
+> - `src/lib/storage.ts` - orkiestracja storage
+
+## 20.1 Moduł crypto.ts (AES-256-GCM)
 
 ```typescript
-// src/lib/storage.ts
-const DB_NAME = 'regis-matrix';
-const STORE_NAME = 'backups';
+// src/lib/crypto.ts
+const ALGORITHM = 'AES-GCM';
+const KEY_LENGTH = 256;
+const IV_LENGTH = 12;
 
-async function getEncryptionKey(): Promise<CryptoKey> {
+let cachedKey: CryptoKey | null = null;
+
+export async function getEncryptionKey(): Promise<CryptoKey> {
+  if (cachedKey) return cachedKey;
+
   // Check IndexedDB for existing key
   let key = await loadKeyFromIndexedDB();
 
   if (!key) {
     // Generate new non-extractable key
     key = await crypto.subtle.generateKey(
-      { name: 'AES-GCM', length: 256 },
+      { name: ALGORITHM, length: KEY_LENGTH },
       false, // non-extractable
       ['encrypt', 'decrypt']
     );
     await saveKeyToIndexedDB(key);
   }
 
+  cachedKey = key;
   return key;
 }
 
-export async function saveBackup(messages: Message[]): Promise<void> {
+export async function encrypt(data: ArrayBuffer): Promise<{ iv: Uint8Array; encrypted: ArrayBuffer }> {
   const key = await getEncryptionKey();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
 
-  const data = new TextEncoder().encode(JSON.stringify(messages));
   const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: ALGORITHM, iv },
     key,
     data
   );
+
+  return { iv, encrypted };
+}
+
+export async function decrypt(encrypted: ArrayBuffer, iv: Uint8Array): Promise<ArrayBuffer> {
+  const key = await getEncryptionKey();
+
+  return crypto.subtle.decrypt(
+    { name: ALGORITHM, iv },
+    key,
+    encrypted
+  );
+}
+```
+
+## 20.2 Moduł backup.ts (Zarządzanie backupami)
+
+```typescript
+// src/lib/backup.ts
+import { encrypt, decrypt } from './crypto';
+
+const DB_NAME = 'regis-matrix';
+const STORE_NAME = 'backups';
+const MAX_BACKUPS = 10;
+
+export async function saveBackup(messages: Message[]): Promise<void> {
+  const data = new TextEncoder().encode(JSON.stringify(messages));
+  const { iv, encrypted } = await encrypt(data);
 
   await saveToIndexedDB({
     iv: Array.from(iv),
     data: Array.from(new Uint8Array(encrypted)),
     timestamp: Date.now(),
   });
+
+  await rotateBackups();
 }
 
 export async function loadLatestBackup(): Promise<Message[] | null> {
   const backup = await getLatestFromIndexedDB();
   if (!backup) return null;
 
-  const key = await getEncryptionKey();
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: new Uint8Array(backup.iv) },
-    key,
-    new Uint8Array(backup.data)
+  const decrypted = await decrypt(
+    new Uint8Array(backup.data),
+    new Uint8Array(backup.iv)
   );
 
   return JSON.parse(new TextDecoder().decode(decrypted));
 }
+
+export async function listBackups(): Promise<BackupMetadata[]> {
+  const db = await openDB();
+  const backups = await db.getAll(STORE_NAME);
+  return backups.map(b => ({
+    id: b.id,
+    timestamp: b.timestamp,
+    size: b.data.length,
+  }));
+}
+
+export async function deleteBackup(id: string): Promise<void> {
+  const db = await openDB();
+  await db.delete(STORE_NAME, id);
+}
 ```
 
-## 20.2 Backup Rotation
+## 20.3 Moduł storage.ts (Orkiestracja)
 
 ```typescript
-const MAX_BACKUPS = 10;
+// src/lib/storage.ts
+import { saveBackup, loadLatestBackup, listBackups } from './backup';
 
+export interface StorageManager {
+  save: (messages: Message[]) => Promise<void>;
+  load: () => Promise<Message[] | null>;
+  list: () => Promise<BackupMetadata[]>;
+  clear: () => Promise<void>;
+}
+
+export function createStorageManager(): StorageManager {
+  return {
+    save: saveBackup,
+    load: loadLatestBackup,
+    list: listBackups,
+    clear: async () => {
+      const backups = await listBackups();
+      for (const backup of backups) {
+        await deleteBackup(backup.id);
+      }
+    },
+  };
+}
+
+// Auto-save integration
+export function useAutoSave(messages: Message[], interval = 30000) {
+  const storage = createStorageManager();
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const timer = setInterval(() => {
+      storage.save(messages);
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [messages, interval]);
+}
+```
+
+## 20.4 Backup Rotation
+
+```typescript
+// W pliku src/lib/backup.ts
 async function rotateBackups(): Promise<void> {
   const db = await openDB();
   const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -3428,6 +3818,48 @@ ENABLE_METRICS=true
 
 # CHANGELOG
 
+## v2.1.0 (2026-01-22) - Refaktoryzacja modułów
+
+### Refaktoryzacja (DONE)
+
+#### MetricsDashboard.tsx - podział komponentu
+- **Przed:** 618 linii | **Po:** 319 linii | **Redukcja:** 48%
+- Wyekstraktowano komponenty do `src/components/metrics/`:
+  - `AlertBadge.tsx` - badge dla alertów
+  - `StatCard.tsx` - karta statystyk
+  - `ProviderCard.tsx` - karta providera
+  - `ErrorRow.tsx` - wiersz błędu
+  - `Sparkline.tsx` - mini wykres sparkline
+- Wyekstraktowano typy do `src/types/metrics.ts`
+
+#### App.tsx - ekstrakcja hooka useChatState
+- **Przed:** 516 linii | **Po:** 402 linii | **Redukcja:** 22%
+- Nowy hook: `src/hooks/useChatState.ts`
+- Zarządzanie stanem czatu wydzielone do osobnego modułu
+
+#### Storage - podział na moduły
+- `src/lib/crypto.ts` - AES-256-GCM szyfrowanie/deszyfrowanie
+- `src/lib/backup.ts` - saveBackup/loadLatestBackup
+- `src/lib/storage.ts` - orkiestracja storage
+
+### Nowe moduły
+
+- `src/types/metrics.ts` - definicje typów dla dashboard metryk
+- `src/lib/format.ts` - narzędzia formatowania (liczby, waluta, czas)
+- `src/lib/http-error-handler.ts` - scentralizowana obsługa błędów HTTP
+- `src/lib/crypto.ts` - szyfrowanie AES-256-GCM
+- `src/lib/backup.ts` - zarządzanie backupami
+- `src/hooks/useChatState.ts` - hook zarządzania stanem czatu
+
+### Ulepszona architektura
+
+- Lepsza separacja odpowiedzialności (SRP)
+- Mniejsze komponenty - łatwiejsze testowanie
+- Centralizacja obsługi błędów HTTP
+- Reużywalne komponenty metryk
+
+---
+
 ## v2.0.0 (2026-01-20)
 
 ### Dodane
@@ -3458,5 +3890,5 @@ ENABLE_METRICS=true
 ---
 
 **Autor dokumentacji:** Claude Opus 4.5
-**Data:** 2026-01-20
-**Wersja dokumentacji:** 2.0.0
+**Data:** 2026-01-22
+**Wersja dokumentacji:** 2.1.0

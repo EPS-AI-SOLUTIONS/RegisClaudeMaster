@@ -1,3 +1,10 @@
+/**
+ * API Client
+ * Handles communication with the Edge backend
+ *
+ * Refactored: Error handling extracted to http-error-handler.ts
+ */
+
 import type { SearchResult } from './types';
 import {
   processSSEChunk,
@@ -5,6 +12,12 @@ import {
   iterateSSEStream,
   type StreamState,
 } from './stream-parser';
+import {
+  handleHttpError,
+  normalizeError,
+  createTimeoutController,
+  RETRYABLE_STATUSES,
+} from './http-error-handler';
 
 export interface ApiResponse {
   success: boolean;
@@ -28,17 +41,11 @@ export interface StreamingResult {
 const API_ENDPOINT = '/api/execute';
 const STREAM_ENDPOINT = '/api/stream';
 const MAX_RETRIES = 3;
+const REQUEST_TIMEOUT = 120000; // 2 minutes
 
-const retryableStatuses = new Set([429, 504]);
-
-async function refreshSession(): Promise<boolean> {
-  const response = await fetch('/api/auth/refresh', {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return response.ok;
-}
-
+/**
+ * Retry a fetch request with exponential backoff
+ */
 async function requestWithRetry(input: RequestInfo, init: RequestInit): Promise<Response> {
   let attempt = 0;
   let lastError: Error | null = null;
@@ -46,7 +53,7 @@ async function requestWithRetry(input: RequestInfo, init: RequestInit): Promise<
   while (attempt < MAX_RETRIES) {
     try {
       const response = await fetch(input, init);
-      if (response.ok || !retryableStatuses.has(response.status)) {
+      if (response.ok || !RETRYABLE_STATUSES.has(response.status)) {
         return response;
       }
       lastError = new Error(`Retryable status: ${response.status}`);
@@ -65,57 +72,36 @@ async function requestWithRetry(input: RequestInfo, init: RequestInit): Promise<
 /**
  * Execute a prompt against the Edge backend
  */
-export async function executePrompt(prompt: string, model?: string, signal?: AbortSignal): Promise<ApiResponse> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+export async function executePrompt(
+  prompt: string,
+  model?: string,
+  signal?: AbortSignal
+): Promise<ApiResponse> {
+  const { signal: mergedSignal, cleanup } = createTimeoutController(REQUEST_TIMEOUT, signal);
 
   try {
-    const mergedSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
     const response = await requestWithRetry(API_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, model, stream: true }),
       signal: mergedSignal,
       credentials: 'include',
     });
 
-    clearTimeout(timeoutId);
+    cleanup();
 
     if (!response.ok) {
-      // Handle specific status codes
-      if (response.status === 401) {
-        const refreshed = await refreshSession();
-        if (refreshed) {
-          return executePrompt(prompt, model, signal);
-        }
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
-        throw new Error('AUTH_ERROR');
+      const shouldRetry = await handleHttpError(response);
+      if (shouldRetry) {
+        return executePrompt(prompt, model, signal);
       }
-      if (response.status === 504) {
-        throw new Error('TIMEOUT');
-      }
-      if (response.status === 429) {
-        throw new Error('RATE_LIMIT');
-      }
-
-      const errorData: ApiError = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
     }
 
-    const data: ApiResponse = await response.json();
-    return data;
+    return await response.json() as ApiResponse;
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        throw new Error('TIMEOUT');
-      }
-      throw error;
-    }
-    throw new Error('UNKNOWN');
+    throw normalizeError(error);
   } finally {
-    clearTimeout(timeoutId);
+    cleanup();
   }
 }
 
@@ -137,12 +123,6 @@ export async function checkApiHealth(): Promise<boolean> {
 /**
  * Execute a prompt with SSE streaming support
  * Progressively sends chunks to the onChunk callback as they arrive
- *
- * @param prompt - The user prompt to send
- * @param model - Optional model ID to use
- * @param onChunk - Callback function called with each text chunk
- * @param signal - Optional AbortSignal for cancellation
- * @returns Final streaming result with full response and metadata
  */
 export async function executePromptStreaming(
   prompt: string,
@@ -150,45 +130,24 @@ export async function executePromptStreaming(
   onChunk?: (text: string) => void,
   signal?: AbortSignal
 ): Promise<StreamingResult> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+  const { signal: mergedSignal, cleanup } = createTimeoutController(REQUEST_TIMEOUT, signal);
 
   try {
-    const mergedSignal = signal
-      ? AbortSignal.any([signal, controller.signal])
-      : controller.signal;
-
     const response = await fetch(STREAM_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, model }),
       signal: mergedSignal,
       credentials: 'include',
     });
 
-    clearTimeout(timeoutId);
+    cleanup();
 
     if (!response.ok) {
-      // Handle specific status codes
-      if (response.status === 401) {
-        const refreshed = await refreshSession();
-        if (refreshed) {
-          return executePromptStreaming(prompt, model, onChunk, signal);
-        }
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
-        throw new Error('AUTH_ERROR');
+      const shouldRetry = await handleHttpError(response);
+      if (shouldRetry) {
+        return executePromptStreaming(prompt, model, onChunk, signal);
       }
-      if (response.status === 504) {
-        throw new Error('TIMEOUT');
-      }
-      if (response.status === 429) {
-        throw new Error('RATE_LIMIT');
-      }
-
-      const errorData: ApiError = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
     }
 
     if (!response.body) {
@@ -230,66 +189,37 @@ export async function executePromptStreaming(
       groundingPerformed: state.groundingPerformed,
     };
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        throw new Error('TIMEOUT');
-      }
-      throw error;
-    }
-    throw new Error('UNKNOWN');
+    throw normalizeError(error);
   } finally {
-    clearTimeout(timeoutId);
+    cleanup();
   }
 }
 
 /**
  * Execute a prompt with SSE streaming using async iterator
  * Provides more control over stream processing
- *
- * @param prompt - The user prompt to send
- * @param model - Optional model ID to use
- * @param signal - Optional AbortSignal for cancellation
- * @yields Text chunks as they arrive from the stream
- * @returns Final stream state with metadata
  */
 export async function* streamPrompt(
   prompt: string,
   model?: string,
   signal?: AbortSignal
 ): AsyncGenerator<string, StreamState, unknown> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000);
+  const { signal: mergedSignal, cleanup } = createTimeoutController(REQUEST_TIMEOUT, signal);
 
   try {
-    const mergedSignal = signal
-      ? AbortSignal.any([signal, controller.signal])
-      : controller.signal;
-
     const response = await fetch(STREAM_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, model }),
       signal: mergedSignal,
       credentials: 'include',
     });
 
-    clearTimeout(timeoutId);
+    cleanup();
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('AUTH_ERROR');
-      }
-      if (response.status === 504) {
-        throw new Error('TIMEOUT');
-      }
-      if (response.status === 429) {
-        throw new Error('RATE_LIMIT');
-      }
-
-      const errorData: ApiError = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
+      // For generators, we can't easily retry - just throw
+      await handleHttpError(response, false);
     }
 
     if (!response.body) {
@@ -309,14 +239,8 @@ export async function* streamPrompt(
     // Return the final state
     return result.value as StreamState;
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        throw new Error('TIMEOUT');
-      }
-      throw error;
-    }
-    throw new Error('UNKNOWN');
+    throw normalizeError(error);
   } finally {
-    clearTimeout(timeoutId);
+    cleanup();
   }
 }
