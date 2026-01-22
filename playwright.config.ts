@@ -7,11 +7,12 @@ export default defineConfig({
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
+  outputDir: './test-results',
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: 'on-first-retry', // Changed from retain-on-failure to avoid Windows path issues
   },
   webServer: {
     command: 'npm run preview -- --host 0.0.0.0 --port 4173',

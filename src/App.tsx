@@ -307,6 +307,8 @@ function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
+              role="alert"
+              data-testid="error-message"
               className="mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-200"
             >
               {error}
